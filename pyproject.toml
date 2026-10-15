@@ -7,3 +7,9 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # Upstream notice from Starlette's TestClient; nothing to fix on our side
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
