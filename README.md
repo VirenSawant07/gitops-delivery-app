@@ -49,14 +49,18 @@ flowchart LR
 | **Self-heal** | Manual changes to the cluster (`kubectl scale`, `edit`) are reverted to what Git says |
 | **Alert** | Error rate, availability, restarts, CPU and memory rules → Alertmanager → Discord, each linked to a runbook |
 
+**One version for both services (deliberate trade-off).** Every change to `main` builds, scans and deploys *both* services, tagged with the same commit SHA. A change to one service also redeploys the other. In return, the whole system has a single version number, there is no path-filter logic to get wrong, and staging always runs a pair that was tested together. With more services, per-service builds (path filters) would be worth the extra complexity.
+
 ## The services
 
 | Service | Endpoint | Purpose |
 |---|---|---|
 | `inventory` | `GET /items` | Stock levels (in memory) |
 | `api` | `GET /products` | Calls `inventory` over cluster DNS and returns products with `in_stock`. Returns `502` if inventory is unavailable. |
+| `api` | `GET /` | **Inkling**, a small stationery shop page: live stock, plus a "behind the counter" panel showing the running commit, environment, answering pod, latency and a request log (failed requests appear in red during incidents) |
 
 Both expose `/healthz` (liveness), `/readyz` (readiness), `/metrics` (Prometheus) and the running `version` (the git SHA).
+Each request is logged as one JSON line on stdout (`time`, `level`, `method`, `path`, `status`, `duration_ms`, `version`, `pod`).
 For drills and demos they support fault injection via environment variables: `FAULT_ERROR_RATE`, `FAULT_LATENCY_MS`, and `ALLOW_CRASH` (which enables `POST /crash`).
 
 ## Tech stack
@@ -73,12 +77,13 @@ For drills and demos they support fault injection via environment variables: `FA
 
 ## Security
 
-- **Supply chain:** Actions are pinned to commit SHAs and Trivy to an image digest, after the March 2026 attack that re-pointed Trivy's mutable tags. kubeconform downloads are checksum-verified.
+- **Supply chain:** Actions are pinned to commit SHAs; Trivy, Prometheus (`promtool`) and the base images (`python:3.14-slim`, `busybox:1.37`) to image digests, after the March 2026 attack that re-pointed Trivy's mutable tags. kubeconform downloads are checksum-verified, and its CRD schemas come from a pinned commit. Python dependencies are fully locked with `pip-compile`.
+- **Image tags:** each image is tagged with its commit SHA, which is *unique per commit but not immutable* (GHCR tags can be overwritten). Deploying by digest is the next step; see [decision 4](docs/decisions/04-image-tags-and-pinning.md).
 - **Blocking scan:** the build fails on fixable CRITICAL CVEs, and PR builds never push or deploy.
 - **Minimal images:** removing pip from the runtime image took Trivy's HIGH/CRITICAL findings from **4 to 0**.
 - **Pods:** non-root, read-only root filesystem, all capabilities dropped, no privilege escalation, seccomp `RuntimeDefault`, no service-account token.
 - **Network:** a NetworkPolicy lets only `api` (and Prometheus) reach `inventory`. An unrelated pod was verified to be blocked.
-- **Least privilege:** CI writes to the config repo with a deploy key scoped to that single repo, and never gets cluster credentials.
+- **Least privilege:** CI writes to the config repo with a deploy key scoped to that single repo, and never gets cluster credentials. Within that repo the key can write any path, including `apps/prod/`; see [decision 6](docs/decisions/06-protecting-prod.md) for the branch rules and this residual risk.
 
 ## Measured results
 
@@ -86,14 +91,14 @@ All numbers were measured on the running system (Kind on a laptop: Ryzen 5 5600H
 
 | Measure | Result |
 |---|---|
-| Image size, naive `python:3.14` vs multi-stage slim without pip | 1.67 GB → ~205 MB (−88%) |
+| Image size on disk (`docker image ls`), naive `python:3.14` vs multi-stage slim without pip | 1.67 GB → 207 MB (−88%) |
 | Trivy HIGH/CRITICAL fixable findings, before → after removing pip | 4 → 0 |
 | CI run (lint, test, scan, build, push, deploy commit) | ~66 s |
 | Merge to `main` → new version running in staging | ~3 min |
 | Promote PR merged → prod fully rolled out (6 pods) | ~65 s |
 | Manual drift (`kubectl scale`) reverted by ArgoCD | 2 s |
 | Worker node drained → pods rescheduled, PDB respected | ~9 s |
-| `bootstrap.sh`: ArgoCD installed and root app applied | 1 min 32 s |
+| Empty laptop → whole platform rebuilt from Git, all ArgoCD apps healthy (`setup.sh`) | ~6 min (measured with 8 apps, before metrics-server was added) |
 
 ## Run it yourself
 
@@ -102,18 +107,18 @@ Requirements: Docker, kind, kubectl, helm, and bash (Git Bash on Windows).
 ```bash
 git clone https://github.com/VirenSawant07/gitops-delivery-config.git
 cd gitops-delivery-config
-bash bootstrap/bootstrap.sh          # Kind cluster → ArgoCD → everything else from Git
+bash bootstrap/setup.sh             # Kind cluster → ArgoCD → everything else from Git
 ```
 
 Then:
 
 ```bash
-kubectl -n staging port-forward svc/api 18080:80          # http://localhost:18080/products
+kubectl -n staging port-forward svc/api 18080:80          # shop: http://localhost:18080/
 kubectl -n argocd port-forward svc/argocd-server 8443:443  # ArgoCD UI
 kubectl -n monitoring port-forward svc/monitoring-grafana 13000:80   # Grafana
 ```
 
-> The SealedSecrets in the config repo are encrypted for the original cluster's key. On a new cluster, re-seal your own Discord webhook and Grafana password with `kubeseal`. See [ADR 5](docs/adr/0005-sealed-secrets-for-secrets-in-git.md).
+> The SealedSecrets in the config repo are encrypted for the original cluster's key. To rebuild that cluster, pass the key backup, kept outside the repo: `SEALED_SECRETS_KEY=~/sealed-secrets-key-backup.yaml bash bootstrap/setup.sh`. On a different cluster, re-seal your own Discord webhook and Grafana password with `kubeseal`. See [decision 5](docs/decisions/05-sealed-secrets.md).
 
 Local development:
 
@@ -128,21 +133,23 @@ cd services/api && python -m pytest
 services/
   api/          FastAPI app, Dockerfile, tests (inventory is mocked)
   inventory/    FastAPI app, Dockerfile, tests
+  */requirements.in    direct dependencies; requirements.txt is the pip-compile lock
 .github/
   workflows/ci.yaml     lint → test → build → Trivy gate → push → bump staging
   dependabot.yml
 docs/
-  adr/          design decisions
+  decisions/    why things are built this way
   runbooks/     one per alert
 ```
 
 ## Design decisions
 
-1. [Separate app and config repositories](docs/adr/0001-separate-app-and-config-repositories.md)
-2. [Pull-based delivery with ArgoCD](docs/adr/0002-pull-based-delivery-with-argocd.md)
-3. [One reusable Helm chart](docs/adr/0003-one-reusable-helm-chart.md)
-4. [Immutable image tags and a pinned supply chain](docs/adr/0004-immutable-image-tags-and-pinned-supply-chain.md)
-5. [Sealed Secrets for secrets in Git](docs/adr/0005-sealed-secrets-for-secrets-in-git.md)
+1. [Separate app and config repositories](docs/decisions/01-two-repos.md)
+2. [Pull-based delivery with ArgoCD](docs/decisions/02-argocd-pull-model.md)
+3. [One reusable Helm chart](docs/decisions/03-one-helm-chart.md)
+4. [Commit-SHA image tags and a pinned supply chain](docs/decisions/04-image-tags-and-pinning.md)
+5. [Sealed Secrets for secrets in Git](docs/decisions/05-sealed-secrets.md)
+6. [Protecting prod with branch rules](docs/decisions/06-protecting-prod.md)
 
 ## Roadmap
 
