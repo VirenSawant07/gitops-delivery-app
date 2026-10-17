@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inkling · fresh paper, fresher deploys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FFF8F0;
+    --surface: #FFFFFF;
+    --ink: #1F1B3A;
+    --ink-soft: #4A4566;
+    --muted: #7C7896;
+    --border: #EFE6DA;
+
+    --lavender: #C9BDFF; --lavender-bg: #EEE9FF; --lavender-ink: #5B47C7;
+    --peach: #FFC2A8;    --peach-bg: #FFEADF;    --peach-ink: #B4532A;
+    --mint: #A8E6CF;     --mint-bg: #E2F6EC;     --mint-ink: #1E7A55;
+    --sky: #A9D6FF;      --sky-bg: #E3F1FF;      --sky-ink: #2569A8;
+    --butter: #FFE08A;   --butter-bg: #FFF5D4;   --butter-ink: #8A6300;
+    --rose: #FFB3C1;     --rose-bg: #FFE7EC;     --rose-ink: #B23A55;
+
+    --head: 'Montserrat', 'Helvetica Neue', sans-serif;
+    --body: 'DM Sans', 'Helvetica Neue', sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--cream); color: var(--ink-soft); font: 400 16px/1.65 var(--body); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; }
+  img { display: block; max-width: 100%; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+  h1, h2, h3, h4 { font-family: var(--head); color: var(--ink); letter-spacing: -0.02em; }
+
+  /* ---------- Intro ---------- */
+  .intro {
+    position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+    background: var(--cream); transition: transform .9s var(--ease) .15s, opacity .6s ease .35s;
+  }
+  .intro-inner { display: flex; align-items: center; gap: 14px; animation: introPop .7s var(--spring) both; }
+  .intro-inner b { font: 800 34px/1 var(--head); color: var(--ink); letter-spacing: -0.03em; }
+  .intro-bar { position: absolute; bottom: 38%; width: 140px; height: 3px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .intro-bar::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--lavender), var(--peach), var(--mint)); transform-origin: left; animation: load .9s var(--ease) both; }
+  @keyframes introPop { from { opacity: 0; transform: scale(.85) translateY(8px); } }
+  @keyframes load { from { transform: scaleX(0); } }
+  body.ready .intro { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+
+  /* ---------- Background colour: static gradients, no blur filters or animation, so scrolling stays smooth ---------- */
+  .blobs { position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(640px 520px at 92% -6%, rgba(201, 189, 255, .55), transparent 70%),
+      radial-gradient(560px 480px at -8% 42%, rgba(255, 194, 168, .42), transparent 70%),
+      radial-gradient(560px 460px at 82% 104%, rgba(168, 230, 207, .45), transparent 70%); }
+  header, main, footer { position: relative; z-index: 1; }
+
+  /* ---------- Top bar ---------- */
+  header.bar { position: sticky; top: 0; z-index: 20; background: rgba(255, 248, 240, .95); border-bottom: 1px solid var(--border); }
+  .bar .wrap { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand b { font: 800 22px/1 var(--head); color: var(--ink); letter-spacing: -0.03em; }
+  .bar nav { display: flex; align-items: center; gap: 22px; font: 600 14px/1 var(--head); color: var(--ink-soft); }
+  .bar nav a { text-decoration: none; position: relative; padding: 6px 0; }
+  .bar nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--lavender-ink); transform: scaleX(0); transition: transform .3s var(--ease); }
+  .bar nav a:hover::after { transform: scaleX(1); }
+
+  .tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 9999px; font: 700 11px/1.5 var(--head); letter-spacing: .07em; text-transform: uppercase; background: var(--sky-bg); color: var(--sky-ink); white-space: nowrap; }
+  .tag.mint { background: var(--mint-bg); color: var(--mint-ink); }
+  .tag.butter { background: var(--butter-bg); color: var(--butter-ink); }
+  .tag.rose { background: var(--rose-bg); color: var(--rose-ink); }
+  .tag.lavender { background: var(--lavender-bg); color: var(--lavender-ink); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .dot.live { animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; transform: scale(.8); } }
+
+  /* ---------- Pop-up effect: only transform and opacity animate (cheap for the GPU).
+     The coloured shadow sits on a pseudo-element and simply fades in. ---------- */
+  .lift { position: relative; isolation: isolate; transition: transform .28s var(--ease); }
+  .lift::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+    box-shadow: 0 18px 32px -14px var(--lift-shadow, rgba(91, 71, 199, .5)); opacity: 0; transition: opacity .28s var(--ease); }
+  .lift:hover { transform: translateY(-4px); }
+  .lift:hover::after { opacity: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer; border: 0;
+    padding: 14px 22px; border-radius: 12px; background: var(--ink); color: #fff;
+    font: 700 14px/1 var(--head); letter-spacing: .01em; text-decoration: none;
+  }
+  .btn:active { transform: translateY(-1px) scale(.98); }
+  .btn.soft { background: var(--surface); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--border); --lift-shadow: rgba(240, 140, 110, .55); }
+  .btn svg { transition: transform .28s var(--ease); }
+  .btn:hover svg { transform: translateX(3px); }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 96px 0 72px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 48px; align-items: center; }
+  .kicker { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 9999px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); font: 600 13px/1 var(--head); color: var(--ink-soft); }
+  .kicker .tag { padding: 3px 8px; }
+  h1 { font-size: clamp(44px, 6.6vw, 80px); line-height: 1.02; font-weight: 800; letter-spacing: -0.04em; margin: 26px 0 22px; }
+  h1 .line { display: block; overflow: hidden; padding-bottom: .06em; }
+  h1 .line > span { display: inline-block; transform: translateY(110%); transition: transform 1s var(--ease); transition-delay: var(--d, 0s); }
+  body.ready h1 .line > span { transform: none; }
+  .grad { background: linear-gradient(100deg, var(--lavender-ink) 0%, #E0708A 55%, #F39A5B 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: 19px; max-width: 46ch; color: var(--ink-soft); }
+  .actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+
+  .collage { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; width: 100%; max-width: 480px; justify-self: end; }
+  .polaroid { background: var(--surface); padding: 10px 10px 42px; border-radius: 18px; box-shadow: 0 16px 34px -26px rgba(31, 27, 58, .4); }
+  .polaroid:nth-child(1) { --lift-shadow: rgba(91, 71, 199, .45); }
+  .polaroid:nth-child(2) { --lift-shadow: rgba(37, 105, 168, .42); }
+  .polaroid:nth-child(3) { --lift-shadow: rgba(178, 58, 85, .38); }
+  .polaroid:nth-child(4) { --lift-shadow: rgba(138, 99, 0, .35); }
+  .polaroid img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 12px; }
+  .polaroid span { position: absolute; left: 14px; bottom: 14px; font: 700 13px/1 var(--head); color: var(--ink); }
+  .sticker { position: absolute; z-index: 3; top: -26px; right: -20px; display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--butter); color: var(--ink); font: 800 12px/1.15 var(--head); text-align: center; transform: rotate(12deg); box-shadow: 0 10px 20px -12px rgba(138, 99, 0, .6); }
+  .collage .enter { opacity: 0; translate: 0 24px; transition: opacity .7s var(--ease), translate .7s var(--ease), transform .28s var(--ease); transition-delay: var(--d, 0s), var(--d, 0s), 0s; }
+  body.ready .collage .enter { opacity: 1; translate: 0 0; }
+
+  /* ---------- Marquee ---------- */
+  .marquee { border-block: 1px solid var(--border); background: rgba(255, 255, 255, .55); overflow: hidden; margin-bottom: 110px; }
+  .marquee-track { display: flex; gap: 48px; width: max-content; padding: 16px 0; animation: scroll 32s linear infinite; font: 700 15px/1 var(--head); color: var(--ink); }
+  .marquee-track span { display: inline-flex; align-items: center; gap: 48px; white-space: nowrap; }
+  .marquee-track span::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--lavender); }
+  .marquee-track span:nth-child(3n+2)::after { background: var(--peach); }
+  .marquee-track span:nth-child(3n)::after { background: var(--mint); }
+  @keyframes scroll { to { transform: translateX(-50%); } }
+
+  /* ---------- Sections ---------- */
+  section { padding-bottom: 120px; scroll-margin-top: 84px; }
+  .head { display: flex; align-items: end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 30px; }
+  .eyebrow { font: 700 12px/1 var(--head); letter-spacing: .12em; text-transform: uppercase; color: var(--lavender-ink); margin-bottom: 12px; }
+  h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.08; font-weight: 800; letter-spacing: -0.035em; }
+  .meta { font: 400 13px/1.4 var(--mono); color: var(--muted); }
+
+  /* ---------- Shelf ---------- */
+  .shelf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .card {
+    --accent: var(--lavender); --accent-bg: var(--lavender-bg); --lift-shadow: rgba(91, 71, 199, .45);
+    background: var(--surface); border-radius: 20px; box-shadow: inset 0 0 0 1px var(--border);
+    opacity: 0; animation: rise .7s var(--ease) forwards; animation-delay: calc(var(--i) * 80ms);
+  }
+  @keyframes rise { from { opacity: 0; translate: 0 20px; } to { opacity: 1; translate: 0 0; } }
+  .photo { position: relative; aspect-ratio: 4 / 3; background: var(--accent-bg); overflow: hidden; border-radius: 20px 20px 0 0; }
+  .photo img { position: relative; z-index: 1; width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease); }
+  .card:hover .photo img { transform: scale(1.07); }
+  .photo .fallback { position: absolute; inset: 0; display: grid; place-items: center; font: 800 54px/1 var(--head); color: var(--accent); }
+  .photo .tag { position: absolute; top: 14px; left: 14px; z-index: 2; box-shadow: 0 6px 14px -8px rgba(31, 27, 58, .4); }
+  .card .body { padding: 20px 22px 22px; }
+  .card h3 { font-size: 21px; font-weight: 700; text-transform: capitalize; }
+  .card p { font-size: 14.5px; color: var(--muted); margin: 6px 0 16px; min-height: 24px; }
+  .row { display: flex; align-items: center; justify-content: space-between; }
+  .qty { font: 500 13px/1 var(--mono); color: var(--ink); }
+  .meter { width: 92px; height: 6px; border-radius: 6px; background: var(--accent-bg); overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 6px; background: var(--accent); transform-origin: left; animation: fill 1.2s var(--ease) both; animation-delay: calc(var(--i) * 90ms + .3s); }
+  @keyframes fill { from { transform: scaleX(0); } }
+  .c-lavender { --accent: var(--lavender); --accent-bg: var(--lavender-bg); --lift-shadow: rgba(91, 71, 199, .45); }
+  .c-sky { --accent: var(--sky); --accent-bg: var(--sky-bg); --lift-shadow: rgba(37, 105, 168, .42); }
+  .c-peach { --accent: var(--peach); --accent-bg: var(--peach-bg); --lift-shadow: rgba(180, 83, 42, .38); }
+  .c-rose { --accent: var(--rose); --accent-bg: var(--rose-bg); --lift-shadow: rgba(178, 58, 85, .38); }
+  .c-butter { --accent: var(--butter); --accent-bg: var(--butter-bg); --lift-shadow: rgba(138, 99, 0, .35); }
+  .c-mint { --accent: var(--mint); --accent-bg: var(--mint-bg); --lift-shadow: rgba(30, 122, 85, .38); }
+  .skeleton { height: 360px; border-radius: 20px; background: #fff; box-shadow: inset 0 0 0 1px var(--border); animation: breathe 1.4s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .55; } }
+  .notice { display: none; margin-bottom: 18px; padding: 14px 18px; border-radius: 14px; background: var(--rose-bg); color: var(--rose-ink); font-weight: 500; }
+  .notice.show { display: block; animation: shake .5s var(--ease); }
+  @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+
+  /* ---------- Behind the counter ---------- */
+  .panel { background: var(--surface); border-radius: 22px; box-shadow: inset 0 0 0 1px var(--border), 0 30px 60px -40px rgba(31, 27, 58, .25); overflow: hidden; }
+  .chrome { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 11px; height: 11px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: var(--rose); } .lights i:nth-child(2) { background: var(--butter); } .lights i:nth-child(3) { background: var(--mint); }
+  .chrome code { font: 400 12px/1 var(--mono); color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 20px; }
+  .stat { border-radius: 16px; padding: 18px 18px 20px; min-width: 0; transition: transform .35s var(--spring); }
+  .stat:hover { transform: translateY(-4px); }
+  .stat:nth-child(1) { background: var(--lavender-bg); } .stat:nth-child(2) { background: var(--sky-bg); }
+  .stat:nth-child(3) { background: var(--mint-bg); } .stat:nth-child(4) { background: var(--peach-bg); }
+  .stat small { display: block; font: 700 11px/1 var(--head); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 12px; }
+  .stat strong { display: block; font: 500 17px/1.3 var(--mono); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat strong a { text-decoration: none; border-bottom: 2px solid rgba(31, 27, 58, .15); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; padding: 4px 20px 20px; font-size: 14px; color: var(--muted); }
+  .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; font-weight: 500; color: var(--ink-soft); }
+  .switch input { appearance: none; width: 38px; height: 22px; border-radius: 9999px; background: var(--border); position: relative; cursor: pointer; transition: background .25s; }
+  .switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .15); transition: transform .35s var(--spring); }
+  .switch input:checked { background: var(--lavender-ink); }
+  .switch input:checked::after { transform: translateX(16px); }
+  kbd { font: 500 12px/1 var(--mono); padding: 4px 8px; border-radius: 6px; background: var(--cream); box-shadow: inset 0 0 0 1px var(--border), 0 2px 0 var(--border); color: var(--ink); }
+  .rate { margin-left: auto; font: 500 13px/1 var(--mono); color: var(--ink); }
+  .table-scroll { border-top: 1px solid var(--border); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font: 400 13px/1.4 var(--mono); }
+  th { text-align: left; font: 700 11px/1 var(--head); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 14px 22px; border-bottom: 1px solid var(--border); }
+  td { padding: 11px 22px; border-bottom: 1px solid var(--border); white-space: nowrap; color: var(--ink); }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr { animation: rowin .55s var(--ease); }
+  tbody tr.fail td { background: #FFF2F4; }
+  @keyframes rowin { from { opacity: 0; transform: translateY(-6px); } }
+  .empty td { color: var(--muted); text-align: center; padding: 30px; }
+
+  /* ---------- Journey ---------- */
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  .step { background: var(--surface); border-radius: 18px; padding: 22px 20px 24px; box-shadow: inset 0 0 0 1px var(--border); min-width: 0; }
+  .num { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; font: 800 14px/1 var(--head); color: var(--ink); }
+  .step:nth-child(1) .num { background: var(--lavender-bg); } .step:nth-child(2) .num { background: var(--sky-bg); }
+  .step:nth-child(3) .num { background: var(--mint-bg); } .step:nth-child(4) .num { background: var(--butter-bg); } .step:nth-child(5) .num { background: var(--peach-bg); }
+  .step h4 { font-size: 17px; font-weight: 700; margin: 16px 0 6px; }
+  .step p { font-size: 14px; color: var(--muted); line-height: 1.55; }
+  code.chip { font: 400 12px/1.5 var(--mono); color: var(--ink); background: var(--cream); padding: 1px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+
+  /* ---------- More about this project ---------- */
+  .more { background: var(--surface); border-radius: 24px; box-shadow: inset 0 0 0 1px var(--border); overflow: hidden; }
+  .more-toggle { font: inherit; color: inherit; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 30px 32px; background: none; border: 0; cursor: pointer; text-align: left; transition: background .3s; }
+  .more-toggle:hover { background: #FFFBF6; }
+  .more-toggle h2 { font-size: clamp(24px, 3vw, 32px); }
+  .more-toggle p { color: var(--muted); font-size: 15px; margin-top: 4px; }
+  .plus { flex: none; width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--ink); color: #fff; transition: transform .3s var(--ease); }
+  .more-toggle:hover .plus { transform: translateY(-3px); }
+  .plus svg { transition: transform .45s var(--spring); }
+  .more.open .plus svg { transform: rotate(135deg); }
+  .more-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .6s var(--ease); }
+  .more.open .more-body { grid-template-rows: 1fr; }
+  .more-inner { overflow: hidden; }
+  .more-content { padding: 0 32px 34px; }
+  .tabs { position: relative; display: inline-flex; padding: 5px; border-radius: 14px; background: var(--cream); box-shadow: inset 0 0 0 1px var(--border); margin-bottom: 28px; }
+  .tabs button { position: relative; z-index: 1; border: 0; background: none; cursor: pointer; padding: 11px 26px; border-radius: 10px; font: 700 14px/1 var(--head); color: var(--muted); transition: color .3s; }
+  .tabs button[aria-selected="true"] { color: var(--ink); }
+  .tabs .pill { position: absolute; top: 5px; bottom: 5px; left: 5px; border-radius: 10px; background: var(--surface); box-shadow: 0 6px 16px -8px rgba(31, 27, 58, .35); transition: transform .45s var(--spring), width .45s var(--spring); }
+  .tab-panel { display: none; animation: fadeUp .5s var(--ease); }
+  .tab-panel.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } }
+  .tab-panel h3 { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+  .tab-panel > p { max-width: 70ch; margin-bottom: 22px; }
+  .map { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .map div { border-radius: 14px; padding: 16px 18px; background: var(--cream); }
+  .map b { display: block; font: 700 14px/1.3 var(--head); color: var(--ink); margin-bottom: 4px; }
+  .map span { font-size: 14px; color: var(--ink-soft); }
+  .why { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .why div { border-radius: 14px; padding: 18px; }
+  .why div:nth-child(6n+1) { background: var(--lavender-bg); } .why div:nth-child(6n+2) { background: var(--sky-bg); } .why div:nth-child(6n+3) { background: var(--mint-bg); }
+  .why div:nth-child(6n+4) { background: var(--butter-bg); } .why div:nth-child(6n+5) { background: var(--peach-bg); } .why div:nth-child(6n) { background: var(--rose-bg); }
+  .why b { display: block; font: 700 15px/1.3 var(--head); color: var(--ink); margin-bottom: 6px; }
+  .why span { font-size: 14px; color: var(--ink-soft); }
+  .how { list-style: none; padding: 0; counter-reset: how; display: grid; gap: 10px; }
+  .how li { counter-increment: how; display: grid; grid-template-columns: 40px 1fr; gap: 14px; align-items: start; padding: 14px 16px; border-radius: 14px; background: var(--cream); }
+  .how li::before { content: counter(how); display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--ink); color: #fff; font: 800 13px/1 var(--head); }
+  .how b { font-family: var(--head); color: var(--ink); }
+  .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+
+  footer { border-top: 1px solid var(--border); padding: 34px 0 54px; font-size: 14px; color: var(--muted); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  footer nav { display: flex; gap: 22px; font: 600 14px/1 var(--head); }
+  footer a { text-decoration: none; transition: color .2s; }
+  footer a:hover { color: var(--lavender-ink); }
+
+  /* Scroll reveal */
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: calc(var(--i, 0) * 90ms); }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; padding-top: 64px; }
+    .collage { max-width: 440px; margin: 24px auto 0; justify-self: center; }
+    .shelf { grid-template-columns: repeat(2, 1fr); }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .steps { grid-template-columns: 1fr 1fr; }
+    .why { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 600px) {
+    .shelf, .steps, .why, .map { grid-template-columns: 1fr; }
+    .collage { gap: 12px; }
+    .sticker { width: 68px; height: 68px; font-size: 10px; top: -20px; right: -6px; }
+    .bar nav .hide-sm { display: none; }
+    .more-toggle, .more-content { padding-left: 20px; padding-right: 20px; }
+    .tabs button { padding: 10px 18px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .intro { display: none; }
+    .reveal, .card, .collage .enter { opacity: 1 !important; transform: none !important; translate: none !important; }
+    h1 .line > span { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="intro" aria-hidden="true">
+  <div class="intro-inner">
+    <svg width="44" height="44" viewBox="0 0 44 44"><rect width="44" height="44" rx="13" fill="#1F1B3A"/><path d="M14 30 L26 12 L31 16 L19 33 Z" fill="#C9BDFF"/><path d="M14 30 L13 34 L19 33" fill="#FFC2A8"/></svg>
+    <b>Inkling</b>
+  </div>
+  <div class="intro-bar"></div>
+</div>
+<div class="blobs" aria-hidden="true"></div>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Inkling home">
+      <svg width="32" height="32" viewBox="0 0 44 44" aria-hidden="true"><rect width="44" height="44" rx="13" fill="#1F1B3A"/><path d="M14 30 L26 12 L31 16 L19 33 Z" fill="#C9BDFF"/><path d="M14 30 L13 34 L19 33" fill="#FFC2A8"/></svg>
+      <b>Inkling</b>
+    </a>
+    <nav>
+      <a class="hide-sm" href="#shelf">Shop</a>
+      <a class="hide-sm" href="#counter">Live</a>
+      <a class="hide-sm" href="#more" data-tab="what">About</a>
+      <span id="env-tag" class="tag"><span class="dot live"></span><span>connecting</span></span>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div>
+      <span class="kicker"><span class="tag lavender">New</span> A stationery shop that ships itself</span>
+      <h1>
+        <span class="line"><span style="--d:.55s">Fresh paper.</span></span>
+        <span class="line"><span class="grad" style="--d:.7s">Fresher deploys.</span></span>
+      </h1>
+      <p class="lede reveal" style="--i:6">Pens, notebooks and sticky notes, served by two tiny services on Kubernetes. Every product on this shelf travelled through a tested, scanned, Git-driven pipeline before it reached your screen.</p>
+      <div class="actions reveal" style="--i:7">
+        <a class="btn lift" href="#shelf">Shop the shelf
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+        <a class="btn soft lift" href="#more" data-tab="how">How it works</a>
+      </div>
+    </div>
+    <div class="collage" aria-hidden="true">
+      <div class="polaroid lift enter" style="--d:.75s"><img src="https://images.unsplash.com/photo-1518674660708-0e2c0473e68e?w=500&q=70&auto=format&fit=crop" alt=""><span>Pens</span></div>
+      <div class="polaroid lift enter" style="--d:.85s"><img src="https://images.unsplash.com/photo-1531346878377-a5be20888e57?w=500&q=70&auto=format&fit=crop" alt=""><span>Notebooks</span></div>
+      <div class="polaroid lift enter" style="--d:.95s"><img src="https://images.unsplash.com/photo-1607081758973-b85919737e26?w=500&q=70&auto=format&fit=crop" alt=""><span>Pencils</span></div>
+      <div class="polaroid lift enter" style="--d:1.05s"><img src="https://images.unsplash.com/photo-1567855354833-ac2c4f967b0c?w=500&q=70&auto=format&fit=crop" alt=""><span>Highlighters</span></div>
+      <div class="sticker enter" style="--d:1.2s">Deployed<br>by Git</div>
+    </div>
+  </div>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Tested on every pull request</span><span>Scanned for vulnerabilities</span><span>Tagged with the commit</span><span>Synced by ArgoCD</span><span>Watched by Prometheus</span><span>Rolled back with git revert</span>
+      <span>Tested on every pull request</span><span>Scanned for vulnerabilities</span><span>Tagged with the commit</span><span>Synced by ArgoCD</span><span>Watched by Prometheus</span><span>Rolled back with git revert</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section id="shelf">
+      <div class="head reveal">
+        <div><div class="eyebrow">The shop</div><h2>On the shelf today</h2></div>
+        <span class="meta" id="shelf-meta">Reading stock from inventory…</span>
+      </div>
+      <div class="notice" id="notice" role="status"></div>
+      <div class="shelf" id="products" aria-live="polite">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+    </section>
+
+    <section id="counter">
+      <div class="head reveal">
+        <div><div class="eyebrow">Live</div><h2>Behind the counter</h2></div>
+        <span class="meta">Every call to <code class="chip">GET /products</code>, as it happens</span>
+      </div>
+      <div class="panel reveal">
+        <div class="chrome"><div class="lights" aria-hidden="true"><i></i><i></i><i></i></div><code>api · /products</code></div>
+        <div class="stats">
+          <div class="stat"><small>Environment</small><strong id="s-env">–</strong></div>
+          <div class="stat"><small>Running commit</small><strong id="s-version">–</strong></div>
+          <div class="stat"><small>Answered by pod</small><strong id="s-pod">–</strong></div>
+          <div class="stat"><small>Response time</small><strong id="s-latency">–</strong></div>
+        </div>
+        <div class="controls">
+          <button class="btn lift" id="send" type="button">Send a request</button>
+          <label class="switch"><input type="checkbox" id="auto" checked> Repeat every 3 s</label>
+          <span>or press <kbd>R</kbd></span>
+          <span class="rate" id="rate">0 of 0 succeeded</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Time</th><th>Status</th><th>Pod</th><th>Commit</th><th>Duration</th></tr></thead>
+            <tbody id="log"><tr class="empty"><td colspan="5">Waiting for the first request…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="journey">
+      <div class="head reveal">
+        <div><div class="eyebrow">The journey</div><h2>How this page reached you</h2></div>
+        <span class="meta">No one deployed it by hand</span>
+      </div>
+      <div class="steps reveal">
+        <div class="step lift"><span class="num">1</span><h4>A commit</h4><p>Code pushed to <code class="chip">gitops-delivery-app</code> and merged through a pull request.</p></div>
+        <div class="step lift"><span class="num">2</span><h4>Checked</h4><p>GitHub Actions ran the linter, the tests and a Trivy security scan.</p></div>
+        <div class="step lift"><span class="num">3</span><h4>Packed</h4><p>Built into an image tagged with the commit: <code class="chip" id="j-image">gitops-api:…</code></p></div>
+        <div class="step lift"><span class="num">4</span><h4>Written down</h4><p>The new tag was committed to <code class="chip" id="j-file">apps/…/api.yaml</code> in the config repo.</p></div>
+        <div class="step lift"><span class="num">5</span><h4>Synced</h4><p>ArgoCD noticed and rolled it out to <code class="chip" id="j-env">…</code> with zero downtime.</p></div>
+      </div>
+    </section>
+
+    <section id="more">
+      <div class="more reveal" id="more-box">
+        <button class="more-toggle" id="more-toggle" type="button" aria-expanded="false" aria-controls="more-body">
+          <div><h2>More about this project</h2><p>What it is, why it exists, and how every part works.</p></div>
+          <span class="plus" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 3v14M3 10h14"/></svg></span>
+        </button>
+        <div class="more-body" id="more-body">
+          <div class="more-inner">
+            <div class="more-content">
+              <div class="tabs" role="tablist" aria-label="About this project">
+                <span class="pill" aria-hidden="true"></span>
+                <button role="tab" aria-selected="true" aria-controls="tab-what" id="t-what">What</button>
+                <button role="tab" aria-selected="false" aria-controls="tab-why" id="t-why">Why</button>
+                <button role="tab" aria-selected="false" aria-controls="tab-how" id="t-how">How</button>
+              </div>
+
+              <div class="tab-panel active" role="tabpanel" id="tab-what" aria-labelledby="t-what">
+                <h3>A shop is the demo. The delivery system is the project.</h3>
+                <p>Inkling is a small demo shop. The real work is the GitOps platform underneath it, which tests, packages, deploys and watches the shop automatically. Here is what each part of this page represents:</p>
+                <div class="map">
+                  <div><b>On the shelf</b><span>The <em>inventory</em> service, a Python microservice that keeps the stock.</span></div>
+                  <div><b>Behind the counter</b><span>The <em>api</em> service, running as several pods in Kubernetes. Each row is one real request.</span></div>
+                  <div><b>Environment tag</b><span>The Kubernetes namespace the page runs in: <em>staging</em> for testing, <em>prod</em> for real users.</span></div>
+                  <div><b>Running commit</b><span>The exact Git commit the running container image was built from.</span></div>
+                  <div><b>Answered by pod</b><span>The specific pod (container) that handled the request.</span></div>
+                  <div><b>Red rows</b><span>Failed requests, for example during a simulated bad release. They disappear after a rollback.</span></div>
+                </div>
+              </div>
+
+              <div class="tab-panel" role="tabpanel" id="tab-why" aria-labelledby="t-why">
+                <h3>Shipping software by hand is slow and risky.</h3>
+                <p>Copying files to servers, forgetting a step, and not knowing who changed what are how outages happen. This project makes Git the single source of truth: the cluster always matches what is written in Git.</p>
+                <div class="why">
+                  <div><b>Safe by default</b><span>Tests and a security scan run on every change. Broken or vulnerable code never ships.</span></div>
+                  <div><b>Every change recorded</b><span>Who changed what, when and why lives in Git history, ready for any audit.</span></div>
+                  <div><b>Undo in seconds</b><span>Rolling back is a <code class="chip">git revert</code>. ArgoCD restores the previous version.</span></div>
+                  <div><b>Self-healing</b><span>Manual changes to the cluster are undone automatically within seconds.</span></div>
+                  <div><b>A human gate for prod</b><span>Staging updates itself. Production only changes through a reviewed pull request.</span></div>
+                  <div><b>Rebuilt in minutes</b><span>The whole platform can be recreated from Git with one command in about 6 minutes.</span></div>
+                </div>
+              </div>
+
+              <div class="tab-panel" role="tabpanel" id="tab-how" aria-labelledby="t-how">
+                <h3>From a commit to your screen, step by step.</h3>
+                <ol class="how">
+                  <li><div><b>Push.</b> A developer pushes code and opens a pull request in the app repository.</div></li>
+                  <li><div><b>Check.</b> GitHub Actions lints the code, runs the tests, builds a Docker image and scans it with Trivy. Critical vulnerabilities stop the pipeline.</div></li>
+                  <li><div><b>Package.</b> On merge, the image is pushed to GitHub Container Registry, tagged with the commit ID.</div></li>
+                  <li><div><b>Record.</b> A bot writes the new tag into the config repository, the "order book" for staging.</div></li>
+                  <li><div><b>Sync.</b> ArgoCD, running inside the Kubernetes cluster, notices within a minute and rolls out the new version with zero downtime.</div></li>
+                  <li><div><b>Promote.</b> One click opens a pull request that copies the staging version to prod. Merging it deploys production.</div></li>
+                  <li><div><b>Watch.</b> Prometheus collects metrics every 15 seconds, Grafana draws them, and five alert rules notify Discord with a runbook link.</div></li>
+                  <li><div><b>Recover.</b> If a release misbehaves, <code class="chip">git revert</code> brings the previous version back automatically.</div></li>
+                </ol>
+                <div class="stack">
+                  <span class="tag lavender">Python · FastAPI</span><span class="tag">Docker</span><span class="tag mint">Kubernetes · Kind</span><span class="tag butter">Helm</span>
+                  <span class="tag rose">GitHub Actions</span><span class="tag lavender">Trivy</span><span class="tag">ArgoCD</span><span class="tag mint">Prometheus</span>
+                  <span class="tag butter">Grafana</span><span class="tag rose">Sealed Secrets</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Inkling is the demo shop of the GitOps Delivery Platform. Photos from Unsplash.</span>
+    <nav>
+      <a href="/docs">API docs</a>
+      <a href="/metrics">Metrics</a>
+      <a href="https://github.com/VirenSawant07/gitops-delivery-app" target="_blank" rel="noopener">Source</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const REPO = "https://github.com/VirenSawant07/gitops-delivery-app/commit/";
+  const ENV_TAG = { prod: "mint", staging: "butter" };
+  const IMG = "https://images.unsplash.com/photo-";
+  const CATALOG = {
+    pen: { note: "Gold-nib fountain pen, smooth 0.5 mm line", photo: "1518674660708-0e2c0473e68e", color: "lavender" },
+    notebook: { note: "Spiral notebook, 120 dotted pages", photo: "1531346878377-a5be20888e57", color: "sky" },
+    bag: { note: "Organic canvas tote for everyday carry", photo: "1544816155-12df9643f363", color: "peach" },
+    pencil: { note: "Coloured pencils, set of 12 soft cores", photo: "1607081758973-b85919737e26", color: "rose" },
+    highlighter: { note: "Pastel highlighters, chisel tip, set of 4", photo: "1567855354833-ac2c4f967b0c", color: "butter" },
+    "sticky notes": { note: "Sticky notes, 3 x 3 in, pad of 100", photo: "1553044020-8c90843adf96", color: "mint" },
+  };
+
+  // Shown when the page is opened as a file (no API behind it) or the API can't be reached
+  const SAMPLE = { version: "preview", environment: "preview", products: [
+    { name: "pen", quantity: 10 }, { name: "notebook", quantity: 0 }, { name: "bag", quantity: 4 },
+    { name: "pencil", quantity: 25 }, { name: "highlighter", quantity: 3 }, { name: "sticky notes", quantity: 12 },
+  ] };
+  const LIVE = location.protocol.startsWith("http");
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const short = v => (v && v.length >= 7 && v !== "dev" ? v.slice(0, 7) : v || "–");
+
+  // Opening animation
+  const start = () => setTimeout(() => document.body.classList.add("ready"), 650);
+  document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", start) : start();
+
+  let total = 0, ok = 0, lastData = null, shelfKey = "";
+
+  function badge(q) {
+    if (q === 0) return '<span class="tag rose">Sold out</span>';
+    if (q < 5) return '<span class="tag butter">Running low</span>';
+    return '<span class="tag mint">In stock</span>';
+  }
+
+  function renderShelf(products) {
+    const key = JSON.stringify(products);
+    if (key === shelfKey) return;           // nothing changed, keep cards (and their animations) as they are
+    shelfKey = key;
+    const max = Math.max(...products.map(p => p.quantity), 1);
+    $("products").innerHTML = products.map((p, i) => {
+      const item = CATALOG[String(p.name).toLowerCase()] || { note: "", color: "lavender" };
+      const photo = item.photo
+        ? `<img src="${IMG}${item.photo}?w=700&q=72&auto=format&fit=crop" alt="${esc(p.name)}" loading="lazy" onerror="this.remove()">`
+        : "";
+      return `<article class="card lift c-${item.color}" style="--i:${i}">
+        <div class="photo"><span class="fallback">${esc(String(p.name).charAt(0).toUpperCase())}</span>${photo}${badge(p.quantity)}</div>
+        <div class="body">
+          <h3>${esc(p.name)}</h3>
+          <p>${esc(item.note)}</p>
+          <div class="row"><span class="qty">${p.quantity} left</span>
+            <span class="meter" title="${p.quantity} in stock"><i style="width:${Math.round((p.quantity / max) * 100)}%"></i></span></div>
+        </div></article>`;
+    }).join("");
+  }
+
+  function renderInfo(d, pod) {
+    const env = d.environment || "local";
+    const tag = $("env-tag");
+    tag.className = "tag " + (ENV_TAG[env] || "");
+    tag.lastElementChild.textContent = env;
+    $("s-env").textContent = env;
+    $("s-version").innerHTML = d.version && d.version.length === 40
+      ? `<a href="${REPO}${esc(d.version)}" target="_blank" rel="noopener">${esc(short(d.version))}</a>` : esc(short(d.version));
+    $("s-pod").textContent = pod || d.served_by || "–";
+    $("j-image").textContent = `gitops-api:${short(d.version)}`;
+    $("j-file").textContent = `apps/${env}/api.yaml`;
+    $("j-env").textContent = env;
+  }
+
+  function addLog(status, pod, version, ms) {
+    const log = $("log");
+    log.querySelector(".empty")?.remove();
+    const good = status >= 200 && status < 300;
+    const row = document.createElement("tr");
+    if (!good) row.className = "fail";
+    row.innerHTML = `<td>${new Date().toLocaleTimeString()}</td>
+      <td><span class="tag ${good ? "mint" : status ? "rose" : "butter"}">${status || "offline"}</span></td>
+      <td>${esc(pod || "–")}</td><td>${esc(short(version))}</td><td>${ms} ms</td>`;
+    log.prepend(row);
+    while (log.children.length > 8) log.lastElementChild.remove();
+  }
+
+  async function request() {
+    const t0 = performance.now();
+    let status = 0, pod = null, data = null, detail = "";
+    try {
+      const res = await fetch("/products", { cache: "no-store" });
+      status = res.status;
+      pod = res.headers.get("X-Served-By");
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) data = body; else detail = body.detail || res.statusText;
+    } catch (e) { detail = "the shop could not be reached"; }
+    const ms = Math.round(performance.now() - t0);
+
+    total++;
+    if (data) {
+      ok++;
+      lastData = data;
+      renderShelf(data.products);
+      renderInfo(data, pod);
+      $("notice").classList.remove("show");
+      $("shelf-meta").textContent = `${data.products.length} items · updated ${new Date().toLocaleTimeString()}`;
+    } else {
+      const n = $("notice");
+      n.classList.remove("show"); void n.offsetWidth;
+      n.textContent = `The last request failed (${status || "no response"}: ${detail}).` + (lastData ? " Showing the stock from the previous answer." : "");
+      n.classList.add("show");
+      if (pod) $("s-pod").textContent = pod;
+      if (!lastData) {
+        renderShelf(SAMPLE.products);
+        $("shelf-meta").textContent = "Sample stock · the live API is not reachable";
+      }
+    }
+    $("s-latency").textContent = `${ms} ms`;
+    $("rate").textContent = `${ok} of ${total} succeeded`;
+    addLog(status, pod, data ? data.version : lastData?.version, ms);
+  }
+
+  let timer = null;
+  function schedule() {
+    clearInterval(timer);
+    if ($("auto").checked) timer = setInterval(() => { if (!document.hidden) request(); }, 3000);
+  }
+
+  // "More about this project": expand + What / Why / How tabs
+  const box = $("more-box"), toggle = $("more-toggle");
+  toggle.addEventListener("click", () => {
+    const open = !box.classList.contains("open");
+    box.classList.toggle("open", open);
+    toggle.setAttribute("aria-expanded", open);
+    if (open) requestAnimationFrame(movePill);
+  });
+  const tabs = [...document.querySelectorAll('[role="tab"]')];
+  const pill = document.querySelector(".tabs .pill");
+  function movePill() {
+    const t = tabs.find(b => b.getAttribute("aria-selected") === "true");
+    pill.style.width = `${t.offsetWidth}px`;
+    pill.style.transform = `translateX(${t.offsetLeft - 5}px)`;
+  }
+  function selectTab(name) {
+    tabs.forEach(b => {
+      const on = b.id === "t-" + name;
+      b.setAttribute("aria-selected", on);
+      $(b.getAttribute("aria-controls")).classList.toggle("active", on);
+    });
+    movePill();
+  }
+  function openMore(tab) {
+    box.classList.add("open");
+    toggle.setAttribute("aria-expanded", "true");
+    selectTab(tab);
+    requestAnimationFrame(movePill);
+  }
+  tabs.forEach(t => t.addEventListener("click", () => selectTab(t.id.slice(2))));
+
+  // In-page links scroll smoothly from anywhere; "How it works" and "About" also open the right tab
+  const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener("click", e => {
+    const target = $(a.getAttribute("href").slice(1));
+    if (!target) return;
+    e.preventDefault();
+    if (a.dataset.tab) openMore(a.dataset.tab);
+    scrollToEl(target);
+  }));
+
+  // Own scroll animation: native smooth scrolling stalls in some embedded browsers.
+  // The timeout guarantees we arrive even if animation frames are throttled.
+  function scrollToEl(el) {
+    const y = Math.max(0, el.getBoundingClientRect().top + scrollY - 76);
+    if (!smooth) return scrollTo(0, y);
+    const from = scrollY, t0 = performance.now(), dur = 600;
+    const step = now => {
+      const t = Math.min(1, (now - t0) / dur);
+      scrollTo(0, from + (y - from) * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+    setTimeout(() => scrollTo(0, y), dur + 120);
+  }
+  window.addEventListener("resize", () => box.classList.contains("open") && movePill());
+
+  // Scroll reveal
+  const io = new IntersectionObserver(entries => entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+  }), { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+
+  $("send").addEventListener("click", request);
+  $("auto").addEventListener("change", schedule);
+  document.addEventListener("keydown", e => {
+    if ((e.key === "r" || e.key === "R") && !e.ctrlKey && !e.metaKey && !e.altKey && !/input|textarea/i.test(e.target.tagName)) request();
+  });
+
+  if (LIVE) {
+    request();
+    schedule();
+  } else {
+    renderShelf(SAMPLE.products);
+    renderInfo(SAMPLE, "preview");
+    $("auto").checked = false;
+    $("shelf-meta").textContent = "Sample stock · run the shop on Kubernetes for live data";
+    $("rate").textContent = "Preview mode";
+    $("log").innerHTML = '<tr class="empty"><td colspan="5">Live requests appear here when the shop runs on Kubernetes.</td></tr>';
+  }
+})();
+</script>
+</body>
+</html>

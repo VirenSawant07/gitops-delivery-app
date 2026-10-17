@@ -1,6 +1,9 @@
+import json
 import os
 import random
+import socket
 import time
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
@@ -10,10 +13,11 @@ APP_VERSION = os.getenv("APP_VERSION", "dev")
 FAULT_ERROR_RATE = float(os.getenv("FAULT_ERROR_RATE", "0"))  # 0.3 = fail 30% of requests
 FAULT_LATENCY_MS = int(os.getenv("FAULT_LATENCY_MS", "0"))  # extra delay per request
 ALLOW_CRASH = os.getenv("ALLOW_CRASH") == "true"
+POD_NAME = socket.gethostname()  # in Kubernetes the hostname is the pod name
 
 app = FastAPI(title="inventory")
 
-STOCK = {"pen": 10, "notebook": 0, "bag": 4}
+STOCK = {"pen": 10, "notebook": 0, "bag": 4, "pencil": 25, "highlighter": 3, "sticky notes": 12}
 
 # Metrics that Prometheus will read from /metrics
 REQUESTS = Counter("http_requests_total", "HTTP requests", ["path", "status", "version"])
@@ -27,8 +31,26 @@ async def record_metrics(request: Request, call_next):
     route = request.scope.get("route")
     path = route.path if route else "unmatched"
     REQUESTS.labels(path, str(response.status_code), APP_VERSION).inc()
-    LATENCY.labels(path, APP_VERSION).observe(time.perf_counter() - start)
+    duration = time.perf_counter() - start
+    LATENCY.labels(path, APP_VERSION).observe(duration)
+    log_request(request, response.status_code, duration)
     return response
+
+
+def log_request(request: Request, status: int, duration: float):
+    # One JSON line per request on stdout: easy to filter with jq or load into a log stack.
+    # Replaces uvicorn's plain-text access log (turned off with --no-access-log in the Dockerfile).
+    entry = {
+        "time": datetime.now(UTC).isoformat(timespec="milliseconds"),
+        "level": "error" if status >= 500 else "info",
+        "method": request.method,
+        "path": request.url.path,
+        "status": status,
+        "duration_ms": round(duration * 1000, 1),
+        "version": APP_VERSION,
+        "pod": POD_NAME,
+    }
+    print(json.dumps(entry), flush=True)
 
 
 def inject_faults():

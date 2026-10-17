@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 import app as inventory_app
@@ -8,7 +10,17 @@ client = TestClient(inventory_app.app)
 def test_items_returns_stock_and_version():
     resp = client.get("/items")
     assert resp.status_code == 200
-    assert resp.json() == {"version": "dev", "items": {"pen": 10, "notebook": 0, "bag": 4}}
+    assert resp.json() == {
+        "version": "dev",
+        "items": {
+            "pen": 10,
+            "notebook": 0,
+            "bag": 4,
+            "pencil": 25,
+            "highlighter": 3,
+            "sticky notes": 12,
+        },
+    }
 
 
 def test_health_and_ready():
@@ -29,3 +41,14 @@ def test_fault_injection_returns_500(monkeypatch):
 
 def test_crash_is_disabled_by_default():
     assert client.post("/crash").status_code == 404
+
+
+def test_each_request_logs_one_json_line(capsys):
+    client.get("/items")
+    lines = capsys.readouterr().out.strip().splitlines()
+    assert len(lines) == 1
+    entry = json.loads(lines[0])
+    assert entry["path"] == "/items"
+    assert entry["status"] == 200
+    assert entry["level"] == "info"
+    assert entry["version"] == "dev"

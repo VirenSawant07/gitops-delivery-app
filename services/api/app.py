@@ -1,9 +1,14 @@
+import json
 import os
 import random
+import socket
 import time
+from datetime import UTC, datetime
+from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 # Settings come from environment variables, so Kubernetes can change them without code changes
@@ -12,6 +17,9 @@ INVENTORY_URL = os.getenv("INVENTORY_URL", "http://localhost:8001")
 FAULT_ERROR_RATE = float(os.getenv("FAULT_ERROR_RATE", "0"))  # 0.3 = fail 30% of requests
 FAULT_LATENCY_MS = int(os.getenv("FAULT_LATENCY_MS", "0"))  # extra delay per request
 ALLOW_CRASH = os.getenv("ALLOW_CRASH") == "true"
+ENVIRONMENT = os.getenv("ENVIRONMENT", "local")  # set from the pod's namespace by the Helm chart
+POD_NAME = socket.gethostname()  # in Kubernetes the hostname is the pod name
+SHOP_PAGE = (Path(__file__).parent / "static" / "index.html").read_text(encoding="utf-8")
 
 app = FastAPI(title="api")
 inventory = httpx.Client(base_url=INVENTORY_URL, timeout=2.0)
@@ -28,8 +36,28 @@ async def record_metrics(request: Request, call_next):
     route = request.scope.get("route")
     path = route.path if route else "unmatched"
     REQUESTS.labels(path, str(response.status_code), APP_VERSION).inc()
-    LATENCY.labels(path, APP_VERSION).observe(time.perf_counter() - start)
+    duration = time.perf_counter() - start
+    LATENCY.labels(path, APP_VERSION).observe(duration)
+    # Lets the shop page show which pod answered, even when the request failed
+    response.headers["X-Served-By"] = POD_NAME
+    log_request(request, response.status_code, duration)
     return response
+
+
+def log_request(request: Request, status: int, duration: float):
+    # One JSON line per request on stdout: easy to filter with jq or load into a log stack.
+    # Replaces uvicorn's plain-text access log (turned off with --no-access-log in the Dockerfile).
+    entry = {
+        "time": datetime.now(UTC).isoformat(timespec="milliseconds"),
+        "level": "error" if status >= 500 else "info",
+        "method": request.method,
+        "path": request.url.path,
+        "status": status,
+        "duration_ms": round(duration * 1000, 1),
+        "version": APP_VERSION,
+        "pod": POD_NAME,
+    }
+    print(json.dumps(entry), flush=True)
 
 
 def inject_faults():
@@ -51,11 +79,19 @@ def products():
     return {
         "version": APP_VERSION,
         "inventory_version": data["version"],
+        "environment": ENVIRONMENT,
+        "served_by": POD_NAME,
         "products": [
             {"name": name, "quantity": qty, "in_stock": qty > 0}
             for name, qty in data["items"].items()
         ],
     }
+
+
+@app.get("/", include_in_schema=False)
+def shop():
+    # no-cache: after a deploy, browsers fetch the new page instead of an old copy
+    return HTMLResponse(SHOP_PAGE, headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/healthz")
