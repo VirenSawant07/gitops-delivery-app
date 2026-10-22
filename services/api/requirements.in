@@ -1,7 +1,7 @@
 # Top-level dependencies. The full lock (requirements.txt) is generated inside the runtime image:
 #   docker run --rm -v "$PWD:/w" -w /w python:3.14-slim@sha256:<digest from the Dockerfile> \
 #     sh -c "pip install pip-tools && pip-compile --strip-extras --output-file=requirements.txt requirements.in"
-fastapi==0.143.2
+fastapi==0.146.0
 uvicorn==0.54.0
 prometheus-client==0.26.0
 httpx==0.28.1
