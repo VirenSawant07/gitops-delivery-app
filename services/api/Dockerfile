@@ -1,14 +1,14 @@
 # Base image pinned by multi-arch index digest: the tag alone can be re-pointed upstream.
 # Dependabot (docker ecosystem) updates the tag and digest together.
 # Stage 1: install dependencies into a virtualenv
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS build
+FROM python:3.15-slim@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0 AS build
 RUN python -m venv /opt/venv
 COPY requirements.txt .
 RUN /opt/venv/bin/pip install --no-cache-dir -r requirements.txt \
     && /opt/venv/bin/pip uninstall -y pip
 
 # Stage 2: runtime image with only the venv and the app code
-FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
+FROM python:3.15-slim@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0
 ENV PATH=/opt/venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
